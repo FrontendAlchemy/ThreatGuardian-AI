@@ -1,0 +1,41 @@
+#get_groq_response()
+
+def get_groq_response(message):
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    # Build message history with system prompt
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT}
+    ]
+
+    # Add full chat history
+    for speaker, text in st.session_state.chat_display:
+        if speaker == "You":
+            messages.append({"role": "user", "content": text})
+        else:
+            messages.append({"role": "assistant", "content": text})
+
+    # Add the latest user message
+    messages.append({"role": "user", "content": message})
+
+    payload = {
+        "model": "llama3-70b-8192",  # or "mixtral-8x7b-32768"
+        "messages": messages,
+        "temperature": 0.5
+    }
+
+    try:
+        response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload)
+        result = response.json()
+
+        if "choices" in result:
+            return result["choices"][0]["message"]["content"]
+        elif "error" in result:
+            return f"❌ API Error: {result['error'].get('message', 'Unknown error')}"
+        else:
+            return f"❌ Unexpected response: {result}"
+    except Exception as e:
+        return f"❌ Exception occurred: {str(e)}"
