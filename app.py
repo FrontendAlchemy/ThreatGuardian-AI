@@ -328,7 +328,7 @@ elif selected == "CortexIQ Chat":
                     st.session_state.current_chat_id = new_id
                     st.session_state.history[new_id] = []
                     st.session_state.titles[new_id] = "New Chat"
-            st.experimental_rerun()
+            st.rerun()
 
     if st.sidebar.button("➕ New Chat"):
         new_id = str(uuid.uuid4())
