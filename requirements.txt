@@ -1,8 +1,4 @@
-builtwith
-sublist3r
 streamlit
-python-dotenv
-web servers
 requests
-pyppeteer
 beautifulsoup4
+pyppeteer
