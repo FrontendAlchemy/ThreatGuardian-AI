@@ -305,11 +305,25 @@ elif selected == "Subdomain Finder":
         else:
             st.warning("⚠️ No subdomains found.")
 
-#CortexIQ Chat
+# CortexIQ Chat
 elif selected == "CortexIQ Chat":
     st.title("🤖 CortexIQ Chat")
     st.caption("Ask me anything....")
 
+    # Initialize session state
+    if "history" not in st.session_state:
+        st.session_state.history = {}
+    if "titles" not in st.session_state:
+        st.session_state.titles = {}
+    if "current_chat_id" not in st.session_state:
+        new_id = str(uuid.uuid4())
+        st.session_state.current_chat_id = new_id
+        st.session_state.history[new_id] = []
+        st.session_state.titles[new_id] = "New Chat"
+    if "uploaded_files" not in st.session_state:
+        st.session_state.uploaded_files = {}
+
+    # Sidebar: Chat history with delete and switch
     st.sidebar.subheader("📋 Chat History")
     chat_ids = list(st.session_state.history.keys())
     for chat_id in chat_ids:
@@ -320,6 +334,7 @@ elif selected == "CortexIQ Chat":
         if cols[1].button("🗑️", key=f"delete_{chat_id}"):
             del st.session_state.history[chat_id]
             st.session_state.titles.pop(chat_id, None)
+            st.session_state.uploaded_files.pop(chat_id, None)
             if st.session_state.current_chat_id == chat_id:
                 if st.session_state.history:
                     st.session_state.current_chat_id = list(st.session_state.history.keys())[0]
@@ -328,38 +343,54 @@ elif selected == "CortexIQ Chat":
                     st.session_state.current_chat_id = new_id
                     st.session_state.history[new_id] = []
                     st.session_state.titles[new_id] = "New Chat"
+                    st.session_state.uploaded_files[new_id] = []
             st.rerun()
 
+    # New Chat button
     if st.sidebar.button("➕ New Chat"):
         new_id = str(uuid.uuid4())
         st.session_state.current_chat_id = new_id
         st.session_state.history[new_id] = []
         st.session_state.titles[new_id] = "New Chat"
+        st.session_state.uploaded_files[new_id] = []
+        st.rerun()  # Force clear screen immediately
 
-    for msg in st.session_state.history[st.session_state.current_chat_id]:
+    chat_id = st.session_state.current_chat_id
+    messages = st.session_state.history.get(chat_id, [])
+
+    # Display messages
+    for msg in messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
+    # File uploader (active only for current chat)
     uploaded_file = st.file_uploader("📎 Upload a file", type=["txt", "pdf", "csv", "docx"], label_visibility="collapsed")
     if uploaded_file:
         content = uploaded_file.read().decode("utf-8", errors="ignore")
         snippet = content[:2000]
-        st.session_state.history[st.session_state.current_chat_id].append({
-            "role": "user",
-            "content": f"📎 Uploaded file: {uploaded_file.name}\n\n```text\n{snippet}\n```"
-        })
-        st.rerun()
+        file_msg = f"📎 Uploaded file: {uploaded_file.name}\n\n```text\n{snippet}\n```"
 
+        if chat_id not in st.session_state.uploaded_files:
+            st.session_state.uploaded_files[chat_id] = []
+
+        if file_msg not in st.session_state.uploaded_files[chat_id]:
+            st.session_state.uploaded_files[chat_id].append(file_msg)
+            st.session_state.history[chat_id].append({"role": "user", "content": file_msg})
+            st.rerun()
+
+    # User input box
     user_input = st.chat_input("Type your question here...")
     if user_input:
-        chat_id = st.session_state.current_chat_id
         if st.session_state.titles.get(chat_id) == "New Chat":
             st.session_state.titles[chat_id] = user_input[:40]
+
         st.session_state.history[chat_id].append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
+
         with st.chat_message("assistant"):
             with st.spinner("CortexIQ is thinking..."):
                 reply = get_groq_response(user_input)
                 st.markdown(reply)
+
         st.session_state.history[chat_id].append({"role": "assistant", "content": reply})
